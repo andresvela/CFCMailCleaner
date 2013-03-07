@@ -19,11 +19,20 @@ namespace CFCMailCleaner
         private string[] templateData;
         private int lineHeaderInit = 0;
         private int lineHeaderEnd = 0;
-        private int lineHeaderCount = 0;
+        private bool lineHeaderIN = false;
         private int lineIndex = 0;
         private List<string[]> documentLines = new List<string[]>();
         private CommandLineRader commandReader;
         private MemoryStream sw;
+
+
+        private string xmlmStringValue;
+
+        public string XmlmStringValue
+        {
+            get { return xmlmStringValue; }            
+        }
+
 
         public FlatTransofmer(CommandLineRader commandReaderArg)
         {
@@ -37,9 +46,10 @@ namespace CFCMailCleaner
                System.Console.WriteLine(ex.Message);
             }
         }
-        public string saveFileTransformation()
+     
+        public string saveFileTransformation(string outPutFileName)
         {
-            File.WriteAllText(this.commandReader.FileName + ".new.xml", Encoding.UTF8.GetString(sw.ToArray()));
+            File.WriteAllText(outPutFileName , Encoding.UTF8.GetString(sw.ToArray()));
             return null;
         }
 
@@ -51,6 +61,8 @@ namespace CFCMailCleaner
                 xmlWriterSettings.Encoding = new UTF8Encoding(false);
                 xmlWriterSettings.ConformanceLevel = ConformanceLevel.Document;
                 xmlWriterSettings.Indent = true;
+
+
                 using (var writer = System.Xml.XmlWriter.Create(sw, xmlWriterSettings))
                 {
                     // Build Xml with xw.                    
@@ -69,29 +81,28 @@ namespace CFCMailCleaner
                         if (headerLine == this.commandReader.DocumentSeparator)
                         {
                             //detect header document
-                            if (lineHeaderCount == 0)
+                            if (lineHeaderIN == false)
                             {
+                               
                                 lineHeaderInit = lineIndex;
-                                lineHeaderCount++;
-
+                                lineHeaderIN = true;
                                 writer.WriteStartElement("BDOCEDITDATA");
-
-
                             }
+
                             //detect end document
+                                
                             else
                             {
+                                //lineHeaderIN = false;
+                                lineHeaderEnd = lineIndex-1;
 
-                                lineHeaderCount = 0;
-                                lineHeaderEnd = lineIndex--;
-                                //print info between lineHeaderInit and lineHeaderEnd
-                                //documentLines.Add(System.IO.File.ReadLines(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1")).Skip(lineHeaderInit - 1).Take(lineHeaderEnd - 1).ToArray());
-                                writer.WriteCData("\r\n" + string.Join("\r\n", System.IO.File.ReadLines(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1")).Skip(lineHeaderInit - 1).Take(lineHeaderEnd - 1).ToArray()) + "\r\n");
+                                writer.WriteCData("\r\n" + string.Join("\r\n", System.IO.File.ReadLines(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1")).Skip(lineHeaderInit - 1).Take(lineHeaderEnd - lineHeaderInit+1).ToArray()) + "\r\n");
                                 writer.WriteEndElement();
                                 //new Header
                                 lineHeaderInit = lineIndex;
                                 writer.WriteStartElement("BDOCEDITDATA");
                             }
+                                 
                         }
 
                         //template data Treatment
@@ -112,29 +123,19 @@ namespace CFCMailCleaner
                         {
                             //duplicate data Treatment
                         }
-
-
-                        /* Match m = reg.Match(line, 0);
-                         if (m.Success)
-                         {
-                             //int myInt = int.Parse(m.Group(1).Value);
-                             //string path = m.Group(2).Value;
-
-                             // At this point, `myInteger` and `path` contain the values we want
-                             // for the current line. We can then store those values or print them,
-                             // or anything else we like.
-                         }*/
+                        //this.xmlmStringValue = Encoding.UTF8.GetString(sw.ToArray());
                     }
 
-                    //detect end document                      
-                    lineHeaderCount = 0;
+                    //detect end document       
                     lineHeaderEnd = lineIndex--;
                     //print info between lineHeaderInit and lineHeaderEnd
-                    // documentLines.Add(System.IO.File.ReadLines(CommandLine["file"]).Skip(lineHeaderInit).Take(lineHeaderEnd - 1).ToArray());
-                    //System.Console.WriteLine(documentLines);
-                    writer.WriteCData("\r\n" + string.Join("\r\n", System.IO.File.ReadLines(this.commandReader.FileName).Skip(lineHeaderInit).Take(lineHeaderEnd - 1).ToArray()) + "\r\n");
+                   // writer.WriteStartElement("FLATDATA");
+                    writer.WriteCData("\r\n" + string.Join("\r\n", System.IO.File.ReadLines(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1")).Skip(lineHeaderInit).Take(lineHeaderEnd - 1).ToArray()) + "\r\n");
+                   // writer.WriteEndElement();
                     writer.WriteEndElement();
                     writer.WriteEndDocument();
+                     
+                    this.xmlmStringValue = Encoding.UTF8.GetString(sw.ToArray());
 
                 }
             }

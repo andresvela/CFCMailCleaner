@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using CommandLine.Utility;
 using System.Text.RegularExpressions;
-using System.Linq;
 using System.Xml;
 
 
@@ -33,7 +32,8 @@ namespace CFCMailCleaner
 
                 FlatTransofmer cfcTransformer = new FlatTransofmer(commandReader);
                 if (cfcTransformer.doTransformation()){
-                        cfcTransformer.saveFileTransformation();
+                    cfcTransformer.saveFileTransformation(commandReader.FileName+".new.xml");
+                        //System.Console.WriteLine(cfcTransformer.XmlmStringValue);
                 }                             
             }
         }
