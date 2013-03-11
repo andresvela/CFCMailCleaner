@@ -39,8 +39,7 @@ namespace CFCMailCleaner
             try
             {
                 this.commandReader = commandReaderArg;
-                this.fi = new FileInfo(this.commandReader.FileName);
-                this.reader = new StreamReader(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1"), true);
+                this.fi = new FileInfo(this.commandReader.FileName);               
             }
             catch (Exception ex) {
                System.Console.WriteLine(ex.Message);
@@ -162,6 +161,7 @@ namespace CFCMailCleaner
 
         public bool doTransformation()
         {
+            this.reader = new StreamReader(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1"), true);
             using (sw = new MemoryStream())
             {
                 XmlWriterSettings xmlWriterSettings = new XmlWriterSettings();
@@ -182,6 +182,24 @@ namespace CFCMailCleaner
                     this.xmlmStringValue = Encoding.UTF8.GetString(sw.ToArray());
                 }
             }
+            return true;
+        }
+
+        public  bool addTemplateType(string fileOut)
+        {
+            string tempfile = Path.GetTempFileName();
+            StreamWriter writer = new StreamWriter(tempfile);
+            StreamReader reader = new StreamReader(this.commandReader.FileName);
+            String[] partsFile = this.commandReader.FileName.Split('.');
+            string extension = partsFile[partsFile.Length - 2];
+            //Path.GetExtension(this.commandReader.FileName).Substring(1)
+            writer.WriteLine("BDOCEDITMODELE#" + extension);
+            while (!reader.EndOfStream)
+                writer.WriteLine(reader.ReadLine());
+            writer.Close();
+            reader.Close();
+
+            File.Copy(tempfile, fileOut, true);
             return true;
         }
     }

@@ -47,14 +47,35 @@ namespace CFCMailCleaner
         }
 
 
+        private string batchWork;
+
+        public  string BatchWork
+        {
+	        get { return batchWork;}
+	        set { batchWork = value;}
+        }
+
+        private string fileOut;
+
+        public string FileOut
+        {
+            get { return fileOut; }
+            set { fileOut = value; }
+        }
+	
+
+
         public CommandLineRader(string[] args)
         {            
             Arguments CommandLine = new Arguments(args);
             this.fileName = CommandLine["fileName"];
+
             this.documentSeparator = CommandLine["documentData"];
             this.templateStructSeparator = CommandLine["templateData"];
             this.emailDataSeparator = CommandLine["emailData"];
             this.duplicateStructSeparator = CommandLine["duplicateData"];
+            this.batchWork = CommandLine["batchWork"];
+            this.fileOut = CommandLine["fileOut"];
         }
         
     }
