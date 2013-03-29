@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using CommandLine.Utility;
+using System.IO;
 
 namespace CFCMailCleaner
 {
@@ -24,12 +25,12 @@ namespace CFCMailCleaner
             set { documentSeparator = value; }
         }
 
-        private string templateStructSeparator;
+        private string templatesData;
 
-        public string TemplateStructSeparator
+        public string TemplatesData
         {
-            get { return templateStructSeparator; }
-            set { templateStructSeparator = value; }
+            get { return templatesData; }
+            set { templatesData = value; }
         }
         private string emailDataSeparator;
 
@@ -62,21 +63,54 @@ namespace CFCMailCleaner
             get { return fileOut; }
             set { fileOut = value; }
         }
-	
 
+
+        private String[] templateValues;
+
+        public int templateSize
+        {
+            get { return templateValues.Length; }
+           
+        }
+
+        public string templateMail
+        {
+            get { return templateValues[0]; }
+        }
+
+        public string templateAttachment
+        {
+            get { return templateValues[1]; }
+        }
 
         public CommandLineRader(string[] args)
         {            
             Arguments CommandLine = new Arguments(args);
             this.fileName = CommandLine["fileName"];
-
-            this.documentSeparator = CommandLine["documentData"];
-            this.templateStructSeparator = CommandLine["templateData"];
+            this.documentSeparator = CommandLine["documentData"];            
             this.emailDataSeparator = CommandLine["emailData"];
             this.duplicateStructSeparator = CommandLine["duplicateData"];
             this.batchWork = CommandLine["batchWork"];
             this.fileOut = CommandLine["fileOut"];
+
+            //if no model name needed
+            this.templatesData = CommandLine["templateData"];
+            if (templatesData != null)
+            {
+                templateValues = templatesData.Split('|');
+            }
+            else { 
+                string tempfile = Path.GetTempFileName();
+                String[] partsFile = this.fileName.Split('.');
+                string extension = partsFile[partsFile.Length - 3];
+                this.templatesData = extension;
+                templateValues = this.templatesData.Split('-');
+
+            }
+           
         }
         
+
+
     }
 }

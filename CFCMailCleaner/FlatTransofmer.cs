@@ -25,6 +25,7 @@ namespace CFCMailCleaner
         private CommandLineRader commandReader;
         private MemoryStream sw;
         private XmlWriter writer;
+        private Encoding encoding;
 
 
         private string xmlmStringValue;
@@ -33,9 +34,12 @@ namespace CFCMailCleaner
             get { return xmlmStringValue; }            
         }
 
+        private string guidString;
+        private Guid guid;
 
         public FlatTransofmer(CommandLineRader commandReaderArg)
         {
+            encoding = Encoding.GetEncoding("ISO-8859-1");
             try
             {
                 this.commandReader = commandReaderArg;
@@ -48,14 +52,29 @@ namespace CFCMailCleaner
      
         public string saveFileTransformation(string outPutFileName)
         {
-            File.WriteAllText(outPutFileName , Encoding.UTF8.GetString(sw.ToArray()));
+            
+            File.WriteAllText(outPutFileName, encoding.GetString(sw.ToArray()), encoding);
             return null;
         }
 
-        private bool createModeleNode(string[] templateData, int index) {                                    
-                this.writer.WriteElementString("MODELE", templateData[index]);
+        private bool createModeleNode(string template) {                                    
+                this.writer.WriteElementString("MODELE", template);
                 return true;     
         }
+
+        private bool createTypeNode(string type)
+        {
+            this.writer.WriteElementString("TYPE", type);
+            return true;
+        }
+       
+        private bool createGuIdNode(string value)
+        {
+            this.writer.WriteElementString("ID_UNIQUE", value);
+            return true;
+        }
+
+       
 
         private bool createEmailNode(string[] templateData)
         {
@@ -74,7 +93,7 @@ namespace CFCMailCleaner
         private bool createCDATANode(int lineHeaderIni, int lineHeaderEn)
         {
             writer.WriteStartElement("FLATDATA");
-            writer.WriteCData("\r\n" + string.Join("\r\n", System.IO.File.ReadLines(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1")).Skip(lineHeaderIni - 1).Take(lineHeaderEn - lineHeaderIni + 1).ToArray()) + "\r\n");
+            writer.WriteCData("\r\n" + string.Join("\r\n", System.IO.File.ReadLines(this.commandReader.FileName, encoding).Skip(lineHeaderIni - 1).Take(lineHeaderEn - lineHeaderIni + 1).ToArray()) + "\r\n");
             writer.WriteEndElement();
             return true;
         }
@@ -101,6 +120,11 @@ namespace CFCMailCleaner
                 //add try catch
                 headerLine = getHeader(line);
 
+
+                //getSeparator
+                if (this.commandReader.DocumentSeparator == null)
+                    this.commandReader.DocumentSeparator = headerLine;
+
                 //documentSeparator traitement
                 if (headerLine == this.commandReader.DocumentSeparator)
                 {
@@ -111,6 +135,7 @@ namespace CFCMailCleaner
                         lineHeaderInit = lineIndex;
                         lineHeaderIN = true;
                         writer.WriteStartElement("BDOCEDITDATA");
+                        createModeleNode(this.commandReader.templateMail);
                     }
 
                     //detect end document                                
@@ -121,32 +146,37 @@ namespace CFCMailCleaner
                         createCDATANode(lineHeaderInit, lineHeaderEnd);
                         writer.WriteEndElement();
 
-                        //write ducplicate if needed
-                        if (templateData.Length > 4)
+                        //write duplicate if needed
+                        if (this.commandReader.templateSize>1)
                         {
                             writer.WriteStartElement("BDOCEDITDATA");
-                            createModeleNode(templateData, 3);
-                            createEmailNode(emailData);
+                            createModeleNode(this.commandReader.templateAttachment);
+                            
+                            if (this.commandReader.EmailDataSeparator != null)
+                            {
+                                createGuIdNode(guidString);
+                                createTypeNode("ATTACHMENT");
+                                createEmailNode(emailData);
+                            }
+                           
                             createCDATANode(lineHeaderInit, lineHeaderEnd);
                             writer.WriteEndElement();
                         }
                         //new Header
                         lineHeaderInit = lineIndex;
                         writer.WriteStartElement("BDOCEDITDATA");
+                        createModeleNode(this.commandReader.templateMail);
                     }
+                }               
 
-                }
-
-                //template data Treatment
-                if (headerLine == this.commandReader.TemplateStructSeparator)
-                {
-                    templateData = line.Split(delimiterChars);
-                    createModeleNode(templateData, 2);
-                }
-
+                
                 //email data Treatment
-                if (headerLine == this.commandReader.EmailDataSeparator)
+                if (this.commandReader.EmailDataSeparator != null && headerLine == this.commandReader.EmailDataSeparator)
                 {
+                    createTypeNode("EMAIL");
+                    this.guid = Guid.NewGuid();
+                    this.guidString = guid.ToString();
+                    createGuIdNode(guidString);
                     emailData = line.Split(delimiterChars);
                     createEmailNode(emailData);
                 }
@@ -155,17 +185,33 @@ namespace CFCMailCleaner
             //detect end document       
             lineHeaderEnd = lineIndex--;
             createCDATANode(lineHeaderInit, lineHeaderEnd);
+            writer.WriteEndElement();
+            //write duplicate if needed
+            if (this.commandReader.templateSize > 1)
+            {
+                writer.WriteStartElement("BDOCEDITDATA");
+                createModeleNode(this.commandReader.templateAttachment);
+                if (this.commandReader.EmailDataSeparator != null)
+                {
+                    createGuIdNode(guidString);
+                    createTypeNode("ATTACHMENT");
+                    createEmailNode(emailData);
+                }
+                createCDATANode(lineHeaderInit, lineHeaderEnd);
+                writer.WriteEndElement();
+            }
+
             return true;
         
         }
 
         public bool doTransformation()
         {
-            this.reader = new StreamReader(this.commandReader.FileName, Encoding.GetEncoding("iso-8859-1"), true);
+            this.reader = new StreamReader(this.commandReader.FileName, encoding, true);
             using (sw = new MemoryStream())
             {
                 XmlWriterSettings xmlWriterSettings = new XmlWriterSettings();
-                xmlWriterSettings.Encoding = new UTF8Encoding(false);
+                xmlWriterSettings.Encoding = encoding;
                 xmlWriterSettings.ConformanceLevel = ConformanceLevel.Document;
                 xmlWriterSettings.Indent = true;
 
@@ -178,8 +224,8 @@ namespace CFCMailCleaner
                     getXMLBody();
                     
                     writer.WriteEndElement();
-                    writer.WriteEndDocument();                     
-                    this.xmlmStringValue = Encoding.UTF8.GetString(sw.ToArray());
+                    writer.WriteEndDocument();
+                    this.xmlmStringValue = encoding.GetString(sw.ToArray());
                 }
             }
             return true;
@@ -189,7 +235,7 @@ namespace CFCMailCleaner
         {
             string tempfile = Path.GetTempFileName();
             StreamWriter writer = new StreamWriter(tempfile);
-            StreamReader reader = new StreamReader(this.commandReader.FileName);
+            StreamReader reader = new StreamReader(this.commandReader.FileName, encoding);
             String[] partsFile = this.commandReader.FileName.Split('.');
             string extension = partsFile[partsFile.Length - 2];
             //Path.GetExtension(this.commandReader.FileName).Substring(1)
